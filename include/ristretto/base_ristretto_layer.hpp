@@ -34,6 +34,16 @@ class BaseRistrettoLayer{
    */
   void Trim2FixedPoint_cpu(Dtype* data, const int cnt, const int bit_width,
       const int rounding, int fl);
+
+  void Trim2FixedPoint_cpu_weightshow(Dtype* data, const int cnt, const int bit_width,
+      const int rounding, int fl);
+
+  void Trim2FixedPoint_cpu_inputshow(Dtype* data, const int cnt, const int bit_width,
+      const int rounding, int fl);
+
+  void Trim2FixedPoint_cpu_outputshow(Dtype* data, const int cnt, const int bit_width,
+      const int rounding, int fl);
+
   void Trim2FixedPoint_gpu(Dtype* data, const int cnt, const int bit_width,
       const int rounding, int fl);
   /**

@@ -2,6 +2,9 @@
 #include <algorithm>
 #include <stdlib.h>
 #include <time.h>
+#include <fstream>
+#include <string>
+#include <stdio.h>
 
 #include "ristretto/base_ristretto_layer.hpp"
 
@@ -28,10 +31,13 @@ void BaseRistrettoLayer<Dtype>::QuantizeWeights_cpu(
     }
     break;
   case QuantizationParameter_Precision_DYNAMIC_FIXED_POINT:
-    Trim2FixedPoint_cpu(weight, cnt_weight, bw_params_, rounding, fl_params_);
+    //Trim2FixedPoint_cpu(weight, cnt_weight, bw_params_, rounding, fl_params_);
+    Trim2FixedPoint_cpu_weightshow(weight, cnt_weight, bw_params_, rounding, fl_params_);
     if (bias_term) {
       Trim2FixedPoint_cpu(weights_quantized[1]->mutable_cpu_data(),
           weights_quantized[1]->count(), bw_params_, rounding, fl_params_);
+      //Trim2FixedPoint_cpu_weightshow(weights_quantized[1]->mutable_cpu_data(),
+       //   weights_quantized[1]->count(), bw_params_, rounding, fl_params_);
     }
     break;
   case QuantizationParameter_Precision_INTEGER_POWER_OF_2_WEIGHTS:
@@ -52,7 +58,8 @@ void BaseRistrettoLayer<Dtype>::QuantizeLayerInputs_cpu(Dtype* data,
     case QuantizationParameter_Precision_INTEGER_POWER_OF_2_WEIGHTS:
       break;
     case QuantizationParameter_Precision_DYNAMIC_FIXED_POINT:
-      Trim2FixedPoint_cpu(data, count, bw_layer_in_, rounding_, fl_layer_in_);
+      //Trim2FixedPoint_cpu(data, count, bw_layer_in_, rounding_, fl_layer_in_);
+      Trim2FixedPoint_cpu_inputshow(data, count, bw_layer_in_, rounding_, fl_layer_in_);
       break;
     case QuantizationParameter_Precision_MINIFLOAT:
       Trim2MiniFloat_cpu(data, count, fp_mant_, fp_exp_, rounding_);
@@ -70,7 +77,8 @@ void BaseRistrettoLayer<Dtype>::QuantizeLayerOutputs_cpu(
     case QuantizationParameter_Precision_INTEGER_POWER_OF_2_WEIGHTS:
       break;
     case QuantizationParameter_Precision_DYNAMIC_FIXED_POINT:
-      Trim2FixedPoint_cpu(data, count, bw_layer_out_, rounding_, fl_layer_out_);
+      //Trim2FixedPoint_cpu(data, count, bw_layer_out_, rounding_, fl_layer_out_);
+      Trim2FixedPoint_cpu_outputshow(data, count, bw_layer_out_, rounding_, fl_layer_out_);
       break;
     case QuantizationParameter_Precision_MINIFLOAT:
       Trim2MiniFloat_cpu(data, count, fp_mant_, fp_exp_, rounding_);
@@ -84,13 +92,19 @@ void BaseRistrettoLayer<Dtype>::QuantizeLayerOutputs_cpu(
 template <typename Dtype>
 void BaseRistrettoLayer<Dtype>::Trim2FixedPoint_cpu(Dtype* data, const int cnt,
       const int bit_width, const int rounding, int fl) {
+  FILE *fp = NULL;
+  fp = fopen("1.txt","w");
   for (int index = 0; index < cnt; ++index) {
     // Saturate data
+    fprintf(fp,"%f",data[index]);
+    fprintf(fp,"\t");
     Dtype max_data = (pow(2, bit_width - 1) - 1) * pow(2, -fl);
     Dtype min_data = -pow(2, bit_width - 1) * pow(2, -fl);
     data[index] = std::max(std::min(data[index], max_data), min_data);
     // Round data
     data[index] /= pow(2, -fl);
+    fprintf(fp,"%f",data[index]);
+    fprintf(fp,"\t");
     switch (rounding) {
     case QuantizationParameter_Rounding_NEAREST:
       data[index] = round(data[index]);
@@ -102,8 +116,126 @@ void BaseRistrettoLayer<Dtype>::Trim2FixedPoint_cpu(Dtype* data, const int cnt,
       break;
     }
     data[index] *= pow(2, -fl);
+    fprintf(fp,"%f",data[index]);
+    fprintf(fp,"\t");
+    fprintf(fp,"\n");
 	}
+fclose(fp);
 }
+
+///////////////////////////////////////////
+template <typename Dtype>
+void BaseRistrettoLayer<Dtype>::Trim2FixedPoint_cpu_weightshow(Dtype* data, const int cnt,
+      const int bit_width, const int rounding, int fl) {
+  FILE *fp = NULL;
+  fp = fopen("fc_weight.txt","w");
+  for (int index = 0; index < cnt; ++index) {
+    // Saturate data
+    fprintf(fp,"%f",data[index]);
+    fprintf(fp,"\t");
+
+    Dtype max_data = (pow(2, bit_width - 1) - 1) * pow(2, -fl);
+    Dtype min_data = -pow(2, bit_width - 1) * pow(2, -fl);
+    data[index] = std::max(std::min(data[index], max_data), min_data);
+    // Round data
+    data[index] /= pow(2, -fl);
+    fprintf(fp,"%d",bit_width);
+    fprintf(fp,"\t");
+    fprintf(fp,"%d",fl);
+    fprintf(fp,"\t");
+    switch (rounding) {
+    case QuantizationParameter_Rounding_NEAREST:
+      data[index] = round(data[index]);
+      break;
+    case QuantizationParameter_Rounding_STOCHASTIC:
+      data[index] = floor(data[index] + RandUniform_cpu());
+      break;
+    default:
+      break;
+    }
+    data[index] *= pow(2, -fl);
+    fprintf(fp,"%f",data[index]);
+    fprintf(fp,"\t");
+    fprintf(fp,"\n");
+	}
+fclose(fp);
+}
+
+template <typename Dtype>
+void BaseRistrettoLayer<Dtype>::Trim2FixedPoint_cpu_inputshow(Dtype* data, const int cnt,
+      const int bit_width, const int rounding, int fl) {
+  FILE *fp = NULL;
+  fp = fopen("fc_input.txt","w");
+  for (int index = 0; index < cnt; ++index) {
+    // Saturate data
+    fprintf(fp,"%f",data[index]);
+    fprintf(fp,"\t");
+    Dtype max_data = (pow(2, bit_width - 1) - 1) * pow(2, -fl);
+    Dtype min_data = -pow(2, bit_width - 1) * pow(2, -fl);
+    data[index] = std::max(std::min(data[index], max_data), min_data);
+    // Round data
+    data[index] /= pow(2, -fl);
+    fprintf(fp,"%d",bit_width);
+    fprintf(fp,"\t");
+    fprintf(fp,"%d",fl);
+    fprintf(fp,"\t");
+    switch (rounding) {
+    case QuantizationParameter_Rounding_NEAREST:
+      data[index] = round(data[index]);
+      break;
+    case QuantizationParameter_Rounding_STOCHASTIC:
+      data[index] = floor(data[index] + RandUniform_cpu());
+      break;
+    default:
+      break;
+    }
+    data[index] *= pow(2, -fl);
+    fprintf(fp,"%f",data[index]);
+    fprintf(fp,"\t");
+    fprintf(fp,"\n");
+	}
+fclose(fp);
+}
+
+template <typename Dtype>
+void BaseRistrettoLayer<Dtype>::Trim2FixedPoint_cpu_outputshow(Dtype* data, const int cnt,
+      const int bit_width, const int rounding, int fl) {
+  FILE *fp = NULL;
+  fp = fopen("fc_output.txt","w");
+  fstream file("fc_output.txt",ios::out);
+  for (int index = 0; index < cnt; ++index) {
+    // Saturate data
+    fprintf(fp,"%f",data[index]);
+    fprintf(fp,"\t");
+    Dtype max_data = (pow(2, bit_width - 1) - 1) * pow(2, -fl);
+    Dtype min_data = -pow(2, bit_width - 1) * pow(2, -fl);
+    data[index] = std::max(std::min(data[index], max_data), min_data);
+    // Round data
+    data[index] /= pow(2, -fl);
+    fprintf(fp,"%d",bit_width);
+    fprintf(fp,"\t");
+    fprintf(fp,"%d",fl);
+    fprintf(fp,"\t");
+    switch (rounding) {
+    case QuantizationParameter_Rounding_NEAREST:
+      data[index] = round(data[index]);
+      break;
+    case QuantizationParameter_Rounding_STOCHASTIC:
+      data[index] = floor(data[index] + RandUniform_cpu());
+      break;
+    default:
+      break;
+    }
+    data[index] *= pow(2, -fl);
+    fprintf(fp,"%f",data[index]);
+    fprintf(fp,"\t");
+    fprintf(fp,"\n");
+	}
+fclose(fp);
+}
+
+////////////////////////////////////////
+
 
 typedef union {
   float d;
