@@ -25,14 +25,16 @@ Quantization::Quantization(string model, string weights, string model_quantized,
   // Could possibly improve choice of exponent. Experiments show LeNet needs
   // 4bits, but the saturation border is at 3bits (when assuming infinitely long
   // mantisssa).
+  //实验表明LeNet需要4位，饱和边界需要3位
   this->exp_bits_ = 4;
 }
 
+//量化函数入口
 void Quantization::QuantizeNet() {
   CheckWritePermissions(model_quantized_);
   SetGpu();
-  // Run the reference floating point network on validation set to find baseline
-  // accuracy.
+  
+  ////在验证集上运行参考浮点网络以查找基线准确度。
   Net<float>* net_val = new Net<float>(model_, caffe::TEST);
   net_val->CopyTrainedLayersFrom(weights_);
   float accuracy;
@@ -41,11 +43,13 @@ void Quantization::QuantizeNet() {
   delete net_val;
   // Run the reference floating point network on train data set to find maximum
   // values. Do statistic for 10 batches.
+  // 在训练集上运行浮点网络查找最大值，统计10个批次
   Net<float>* net_test = new Net<float>(model_, caffe::TRAIN);
   net_test->CopyTrainedLayersFrom(weights_);
   RunForwardBatches(10, net_test, &accuracy, true);
   delete net_test;
   // Do network quantization and scoring.
+  // 网络量化以及评分
   if (trimming_mode_ == "dynamic_fixed_point") {
     Quantize2DynamicFixedPoint();
   } else if (trimming_mode_ == "minifloat") {
@@ -69,6 +73,7 @@ void Quantization::CheckWritePermissions(const string path) {
 
 void Quantization::SetGpu() {
   // Parse GPU ids or use all available devices
+  // 解析GPU ID
   vector<int> gpus;
   if (gpus_ == "all") {
     int count = 0;
@@ -110,15 +115,15 @@ void Quantization::RunForwardBatches(const int iterations,
   float loss = 0;
   for (int i = 0; i < iterations; ++i) {
     float iter_loss;
-    // Do forward propagation.
+    // Do forward propagation. 前向传播
     const vector<Blob<float>*>& result =
         caffe_net->Forward(bottom_vec, &iter_loss);
-    // Find maximal values in network.
+    // Find maximal values in network. 在网络中找到最大值
     if(do_stats) {
       caffe_net->RangeInLayers(&layer_names_, &max_in_, &max_out_,
           &max_params_);
     }
-    // Keep track of network score over multiple batches.
+    // Keep track of network score over multiple batches.跟踪多个batches的网络评分
     loss += iter_loss;
     int idx = 0;
     for (int j = 0; j < result.size(); ++j) {
@@ -155,11 +160,13 @@ void Quantization::RunForwardBatches(const int iterations,
   *accuracy = test_score[score_number] / iterations;
 }
 
+// 动态固定点量化
 void Quantization::Quantize2DynamicFixedPoint() {
   // Find the integer length for dynamic fixed point numbers.
   // The integer length is chosen such that no saturation occurs.
   // This approximation assumes an infinitely long factional part.
   // For layer activations, we reduce the integer length by one bit.
+  // 找到动态固定点的整数长度、选择整数长度，避免饱和、这种近似假定了一个无限长小数部分、对于激活部分，将整数长度减少一位
   for (int i = 0; i < layer_names_.size(); ++i) {
     il_in_.push_back((int)ceil(log2(max_in_[i])));
     il_out_.push_back((int)ceil(log2(max_out_[i])));
@@ -175,6 +182,7 @@ void Quantization::Quantize2DynamicFixedPoint() {
 
   // Score net with dynamic fixed point convolution parameters.
   // The rest of the net remains in high precision format.
+  // 使用动态定点卷积参数进行评分、网络的其余部分保持高精度格式，即浮点数
   NetParameter param;
   caffe::ReadNetParamsFromTextFileOrDie(model_, &param);
   param.mutable_state()->set_phase(caffe::TEST);

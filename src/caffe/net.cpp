@@ -351,6 +351,7 @@ bool Net<Dtype>::StateMeetsRule(const NetState& state,
   return true;
 }
 
+// 找到绝对最大值
 template <typename Dtype>
 Dtype Net<Dtype>::findMax(Blob<Dtype>* blob) {
   const Dtype* data = blob->cpu_data();
@@ -362,17 +363,18 @@ Dtype Net<Dtype>::findMax(Blob<Dtype>* blob) {
   return max_val;
 }
 
+
 template <typename Dtype>
 void Net<Dtype>::RangeInLayers(vector<string>* layer_name,
       vector<Dtype>* max_in, vector<Dtype>* max_out, vector<Dtype>* max_param) {
   // Initialize vector elements, if needed.
-  if(layer_name->size()==0) {
-    for (int layer_id = 0; layer_id < layers_.size(); ++layer_id) {
+  if(layer_name->size()==0) {// 第一次循环需要初始化==
+    for (int layer_id = 0; layer_id < layers_.size(); ++layer_id) {// 遍历所有层===
       if (strcmp(layers_[layer_id]->type(), "Convolution") == 0 ||
-          strcmp(layers_[layer_id]->type(), "InnerProduct") == 0) {
-        layer_name->push_back(this->layer_names()[layer_id]);
-        max_in->push_back(0);
-        max_out->push_back(0);
+          strcmp(layers_[layer_id]->type(), "InnerProduct") == 0) {// 是Convolution和InnerProduct层的，才进行统计=
+        layer_name->push_back(this->layer_names()[layer_id]);// 卷积层名字==
+        max_in->push_back(0);// 层输入最大值==
+        max_out->push_back(0);// 层输出最大值=
         max_param->push_back(0);
       }
     }
